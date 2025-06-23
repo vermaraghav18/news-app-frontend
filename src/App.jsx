@@ -1,208 +1,83 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import axios from 'axios';
+// src/App.jsx
+import React, { useEffect, useState } from 'react';
+import { fetchNews } from './api/fetchNews';
 import './App.css';
-import AdCard from './components/AdCard';
-import AdBanner from './components/AdBanner';
-
-console.log("✅ Loaded ENV KEY:", import.meta.env.VITE_NEWS_API_KEY);
-
-
-
-
-const API_KEY = import.meta.env.VITE_NEWS_API_KEY;
-
-const PAGE_SIZE = 30;
 
 const categories = [
-  'general', 'business', 'entertainment', 'health',
-  'science', 'sports', 'technology', 'iran-israel'
+  { label: 'Top', value: 'general' },
+  { label: 'Business', value: 'business' },
+  { label: 'Technology', value: 'technology' },
+  { label: 'Health', value: 'health' },
+  { label: 'Science', value: 'science' },
+  { label: 'Sports', value: 'sports' },
+  { label: 'Entertainment', value: 'entertainment' },
+  { label: 'Israel-Iran', value: 'israel iran' } // 👈 this is a keyword, not a category
 ];
-
-const categoryLabels = {
-  general: 'GENERAL',
-  business: 'BUSINESS',
-  entertainment: 'ENTERTAINMENT',
-  health: 'HEALTH',
-  science: 'SCIENCE',
-  sports: 'SPORTS',
-  technology: 'TECHNOLOGY',
-  'iran-israel': 'IRAN–ISRAEL'
-};
 
 function App() {
   const [articles, setArticles] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [category, setCategory] = useState('general');
-  const [country, setCountry] = useState('in'); // Default to India
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-
-  const observer = useRef();
-
-  const lastArticleRef = useCallback(node => {
-    if (loading) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        setPage(prev => prev + 1);
-      }
-    });
-    if (node) observer.current.observe(node);
-  }, [loading, hasMore]);
+  const [selectedCategory, setSelectedCategory] = useState('general');
 
   useEffect(() => {
-    setArticles([]);
-    setPage(1);
-  }, [searchTerm, category, country]);
-
-  useEffect(() => {
-    const fetchNews = async () => {
-      setLoading(true);
-      console.log('🚀 Fetching news...');
-
-      let url = '';
-      let params = {
-        apiKey: API_KEY,
-        page,
-        pageSize: PAGE_SIZE
-      };
-
-      if (category === 'iran-israel') {
-        url = 'https://newsapi.org/v2/everything';
-        params.q = 'iran israel';
-      } else if (country === 'in') {
-        url = 'https://newsapi.org/v2/everything';
-        const baseQuery = searchTerm ? searchTerm : 'India';
-        params.q = `${baseQuery} ${category}`;
-      } else if (searchTerm) {
-        url = 'https://newsapi.org/v2/everything';
-        params.q = searchTerm;
-      } else {
-        url = 'https://newsapi.org/v2/top-headlines';
-        params.country = country;
-        params.category = category;
-      }
-
-      try {
-        const response = await axios.get(url, { params });
-
-        if (page === 1) {
-          setArticles(response.data.articles);
-        } else {
-          setArticles(prev => [...prev, ...response.data.articles]);
-        }
-
-        setHasMore(response.data.articles.length === PAGE_SIZE);
-      } catch (err) {
-        console.error('❌ Error fetching news:', err);
-      }
-
-      setLoading(false);
+    const loadNews = async () => {
+      const data = await fetchNews({ q: 'India', category: selectedCategory });
+      setArticles(data);
     };
-
-    fetchNews();
-  }, [searchTerm, category, country, page]);
+    loadNews();
+  }, [selectedCategory]);
 
   return (
-    <div className="container">
-      <h1>📰 News Feed</h1>
+    <div className="app-container">
+      <header>
+        <img src="/news-icon.png" alt="News Icon" className="icon" />
+        <h1>News</h1>
+      </header>
 
-      <div className="toolbar">
-        <select value={country} onChange={(e) => setCountry(e.target.value)} className="country-selector">
-          <option value="in">🇮🇳 India</option>
-          <option value="us">🇺🇸 USA</option>
-        </select>
-
-        <input
-          type="text"
-          placeholder="Search news..."
-          className="search-bar"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      <div className="category-bar">
+      <div className="category-buttons">
         {categories.map(cat => (
           <button
-            key={cat}
-            className={`category-btn ${cat === category ? 'active' : ''}`}
-            onClick={() => setCategory(cat)}
+            key={cat.value}
+            className={selectedCategory === cat.value ? 'active' : ''}
+            onClick={() => setSelectedCategory(cat.value)}
           >
-            {categoryLabels[cat]}
+            {cat.label}
           </button>
         ))}
       </div>
 
-      <div className="articles">
-        {articles.map((article, index) => {
-  const isLast = index === articles.length - 1;
-  const elements = [];
+     <ul className="news-list">
+  {articles.length === 0 && <p>Loading...</p>}
 
-  // Push the article card
-  elements.push(
-    <div
-      className="card"
-      key={`article-${index}`}
-      ref={isLast ? lastArticleRef : null}
-    >
-      {article.urlToImage && <img src={article.urlToImage} alt="" className="thumb" />}
-      <h2>{article.title}</h2>
-      <p>{article.description}</p>
-      <a href={article.url} target="_blank" rel="noopener noreferrer">Read more →</a>
-    </div>
-  );
-  // 💡 Insert AdBanner after every 4 articles
-  if ((index + 1) % 4 === 0) {
-    return (
-      <React.Fragment key={index}>
-        <div
-          className="card"
-          ref={isLast ? lastArticleRef : null}
-        >
-          {article.urlToImage && <img src={article.urlToImage} alt="" className="thumb" />}
+  {articles.map((article, i) => (
+    <React.Fragment key={i}>
+      <li>
+        <a href={article.url} target="_blank" rel="noopener noreferrer">
+          {article.urlToImage && (
+            <img
+              src={article.urlToImage}
+              alt="news"
+              className="article-image"
+            />
+          )}
           <h2>{article.title}</h2>
           <p>{article.description}</p>
-          <a href={article.url} target="_blank" rel="noopener noreferrer">Read more →</a>
-        </div>
-        <AdBanner /> {/* ✅ Injected here */}
-      </React.Fragment>
-    );
-  }
-  // 💡 Insert AdBanner after every 4 articles
-  if ((index + 1) % 4 === 0) {
-    return (
-      <React.Fragment key={index}>
-        <div
-          className="card"
-          ref={isLast ? lastArticleRef : null}
-        >
-          {article.urlToImage && <img src={article.urlToImage} alt="" className="thumb" />}
-          <h2>{article.title}</h2>
-          <p>{article.description}</p>
-          <a href={article.url} target="_blank" rel="noopener noreferrer">Read more →</a>
-        </div>
-        <AdBanner /> {/* ✅ Injected here */}
-      </React.Fragment>
-    );
-  }
+        </a>
+      </li>
 
-  // Insert an AdCard after every 4 articles
-  if ((index + 1) % 4 === 0) {
-    elements.push(
-      <div key={`ad-${index}`}>
-        <AdCard />
-      </div>
-    );
-  }
+      {/* 👇 Inject ad card after every 4 articles */}
+      {(i + 1) % 4 === 0 && (
+        <li className="ad-card">
+          {/* You can replace this with an image or real ad */}
+          <div className="ad-banner">
+            🔥 Your Ad Here – Promote your brand or service
+          </div>
+        </li>
+      )}
+    </React.Fragment>
+  ))}
+</ul>
 
-  return elements;
-        })}
-      </div>
 
-      {loading && <p>Loading more news...</p>}
-      {!loading && articles.length === 0 && <p>No news found.</p>}
     </div>
   );
 }
