@@ -6,7 +6,8 @@ import AdBanner from './components/AdBanner';
 
 
 
-const API_KEY = '7d16d643bacf43728e3eaba10a2398db';
+const API_KEY = import.meta.env.VITE_NEWS_API_KEY;
+
 const PAGE_SIZE = 30;
 
 const categories = [
