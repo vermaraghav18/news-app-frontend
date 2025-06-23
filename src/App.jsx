@@ -4,6 +4,9 @@ import './App.css';
 import AdCard from './components/AdCard';
 import AdBanner from './components/AdBanner';
 
+console.log("✅ Loaded ENV KEY:", import.meta.env.VITE_NEWS_API_KEY);
+
+
 
 
 const API_KEY = import.meta.env.VITE_NEWS_API_KEY;
